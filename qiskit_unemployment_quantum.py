@@ -94,12 +94,16 @@ X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_
 num_qubits = 4
 
 # initialize feature map and ansatz (reps are how many times we repeat circuit)
-feature_map = zz_feature_map(num_qubits, reps=1) # convert data to quantum state
-ansatz = real_amplitudes(num_qubits, reps=3)     # circuit to do the learning
+feature_map = zz_feature_map(num_qubits, reps=2) # convert data to quantum state
+ansatz = real_amplitudes(num_qubits, reps=6)     # circuit to do the learning
 
 # example quantum simulator
 sim = AerSimulator()
 loss_history = []
+
+# helper function from online
+def parity(bitstring):
+    return 1 if bitstring.count("1") % 2 == 0 else 0
 
 # prediction ml function
 def predict(params, x_sample):
@@ -113,30 +117,31 @@ def predict(params, x_sample):
     qc.measure_all()
 
     # run the circuit on the simulator and get counts
-    tqc = transpile(qc, sim)
-    result = sim.run(tqc, shots=16).result()
+    result = sim.run(qc, shots=16).result()
     counts = result.get_counts()
 
     # since this is binary classification, we just count the number of 1s (times we predict if higher upemployment)
     # We then take an average to see the probability of predicting higher unemployment
     total = 0
     for bitstring, count in counts.items():
-        total += (bitstring.count("1") / num_qubits) * count
+        total += parity(bitstring) * count
 
     return total / 16 # we took 16 shots or runs of the circuit, so we divide by 16 to get the average prediction per sample
 
 # loss function to figure out how bad our predictions are
 def loss(params):
-
-    # calculate predictions for all training samples
+    # go through each sample
     preds = np.array([predict(params, x) for x in X_train])
-    err = np.mean((preds - y_train) ** 2) 
-    loss_history.append(err)  # for each "err" we calculate the average squared error 
+    
+    # we use this to basically make sure when we do the log in our calculation we don't get NaN
+    temp = 1e-8
+    preds = np.clip(preds, temp, 1 - temp)
+    
+    # this is a binary cross entropy function => common measurement for how far we predicted was
+    err = -np.mean(y_train * np.log(preds) + (1 - y_train) * np.log(1 - preds))
 
-    print("loss:", round(err, 3)) 
-    #this should go down (we want to make sure this doesn't overfit so it 
-    # should go down and then start to go back up)
-
+    loss_history.append(err) 
+    
     return err
 
 # Training section 
@@ -149,9 +154,7 @@ result = minimize(
     loss,
     init,
     method="COBYLA",
-    options={
-        "maxiter": 50,
-    }
+    options={"maxiter": 50}
 )
 best_params = result.x
 
@@ -167,15 +170,11 @@ acc = np.mean(test_preds == y_test)
 # this is just matplotlib graphing ==> the first graph is loss history
 # the second generated graph is just how accurate we were compared to randomly guessing
 # we prob only really need the print statement **
+print("Quantum:")
 print("\nAccuracy:", acc)
 plt.figure()
 plt.plot(loss_history)
 plt.title("Training Loss")
 plt.xlabel("Iteration")
 plt.ylabel("Error")
-plt.show()
-
-plt.figure()
-plt.bar(["Accuracy"], [acc])
-plt.ylim(0, 1)
 plt.show()
