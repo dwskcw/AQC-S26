@@ -68,6 +68,9 @@ y = np.array(y)
 
 # Remove any rows with NaN values
 valid_indices = ~np.any(np.isnan(x), axis=1) & ~np.isnan(y)
+x = x[valid_indices]
+y = y[valid_indices]
+
 x = x[:200]
 y = y[:200]
 
@@ -103,7 +106,7 @@ loss_history = []
 
 # helper function from online
 def parity(bitstring):
-    return 1 if bitstring.count("1") % 2 == 0 else 0
+    return bitstring.count("1") % 2
 
 # prediction ml function
 def predict(params, x_sample):
@@ -117,7 +120,7 @@ def predict(params, x_sample):
     qc.measure_all()
 
     # run the circuit on the simulator and get counts
-    result = sim.run(qc, shots=16).result()
+    result = sim.run(qc, shots=256).result()
     counts = result.get_counts()
 
     # since this is binary classification, we just count the number of 1s (times we predict if higher upemployment)
@@ -126,7 +129,7 @@ def predict(params, x_sample):
     for bitstring, count in counts.items():
         total += parity(bitstring) * count
 
-    return total / 16 # we took 16 shots or runs of the circuit, so we divide by 16 to get the average prediction per sample
+    return total / 256 # we took 256 shots or runs of the circuit, so we divide by 256 to get the average prediction per sample
 
 # loss function to figure out how bad our predictions are
 def loss(params):
@@ -171,7 +174,7 @@ acc = np.mean(test_preds == y_test)
 # the second generated graph is just how accurate we were compared to randomly guessing
 # we prob only really need the print statement **
 print("Quantum:")
-print("\nAccuracy:", acc)
+print("Accuracy:", acc)
 plt.figure()
 plt.plot(loss_history)
 plt.title("Training Loss")
