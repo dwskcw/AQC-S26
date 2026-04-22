@@ -1,5 +1,3 @@
-from unittest import result
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -70,11 +68,11 @@ y = np.array(y)
 
 # Remove any rows with NaN values
 valid_indices = ~np.any(np.isnan(x), axis=1) & ~np.isnan(y)
-x = x[valid_indices]
-y = y[valid_indices]
+x = x[:200]
+y = y[:200]
 
-print(f"Valid samples after removing NaN: {len(x)}")
-
+#print(f"Valid samples after removing NaN: {len(x)}")
+# Switched to 200 samples because it was WAY TOO slow with 20000+ samples
 
 # =====================================================================
 
@@ -107,7 +105,7 @@ loss_history = []
 def predict(params, x_sample):
 
     # this just makes the circuit from our current parameters and sample
-    fm = feature_map.assign_parameters(dict(zip(feature_map.parameters, x_sample)))
+    fm = feature_map.assign_parameters(dict(zip(feature_map.parameters, x_sample))) 
     an = ansatz.assign_parameters(params)
 
     # combine feature map and ansatz and measure qubits
@@ -116,7 +114,7 @@ def predict(params, x_sample):
 
     # run the circuit on the simulator and get counts
     tqc = transpile(qc, sim)
-    result = sim.run(tqc, shots=256).result()
+    result = sim.run(tqc, shots=16).result()
     counts = result.get_counts()
 
     # since this is binary classification, we just count the number of 1s (times we predict if higher upemployment)
@@ -125,7 +123,7 @@ def predict(params, x_sample):
     for bitstring, count in counts.items():
         total += (bitstring.count("1") / num_qubits) * count
 
-    return total / 256 # we took 256 shots or runs of the circuit, so we divide by 256 to get the average prediction per sample
+    return total / 16 # we took 16 shots or runs of the circuit, so we divide by 16 to get the average prediction per sample
 
 # loss function to figure out how bad our predictions are
 def loss(params):
@@ -140,8 +138,6 @@ def loss(params):
     # should go down and then start to go back up)
 
     return err
-
-
 
 # Training section 
 
